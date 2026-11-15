@@ -6,22 +6,31 @@
 // Collision strategy: Linear probing, probe j -> (h(k) + j) % m
 // =============================================================
 #include <iostream>
+#include <iomanip>
 using namespace std;
 
 const int N = 20;
 const int SEED = 148;
+const int TABLE_SIZE = 23;
 
 void generateDataset(int v[]) {
     for (int i = 0; i < N; i++)
         v[i] = (SEED + 13 * i) % 100;
 }
 
+// Division method
+int hashDivision(int key, int m) {
+    return key % m;
+}
+
 int main() {
     int data[N];
     generateDataset(data);
 
-    cout << "Personalized dataset (student marks):\n";
+    cout << "Home slots with m = " << TABLE_SIZE << "\n";
+    cout << " i | Key | h(k)\n";
     for (int i = 0; i < N; i++)
-        cout << "v[" << i << "] = " << data[i] << "\n";
+        cout << setw(2) << i << " | " << setw(3) << data[i]
+             << " | " << setw(4) << hashDivision(data[i], TABLE_SIZE) << "\n";
     return 0;
 }
