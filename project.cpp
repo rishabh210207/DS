@@ -28,16 +28,19 @@ public:
 
     int hash(int key) const { return key % m; }
 
-    // No collision handling yet: report collision and skip the key
-    bool insert(int key) {
-        int idx = hash(key);
-        if (table[idx] != EMPTY) {
-            cout << "  COLLISION: key " << key << " -> slot " << idx
-                 << " already holds " << table[idx] << " (key skipped)\n";
-            return false;
+    // Linear probing. Returns final slot, or -1 if the table is full.
+    int insert(int key, int &probes) {
+        int home = hash(key);
+        probes = 0;
+        for (int j = 0; j < m; j++) {
+            int idx = (home + j) % m;     // wrap around
+            probes++;
+            if (table[idx] == EMPTY) {
+                table[idx] = key;
+                return idx;
+            }
         }
-        table[idx] = key;
-        return true;
+        return -1;                        // checked all m slots
     }
 
     void display() const {
@@ -56,11 +59,22 @@ int main() {
     generateDataset(data);
     HashTable ht(TABLE_SIZE);
 
-    int stored = 0;
-    for (int i = 0; i < N; i++)
-        if (ht.insert(data[i])) stored++;
-
-    cout << "\nStored " << stored << " of " << N << " keys\n";
+    cout << "Inserting dataset (m = " << TABLE_SIZE << ")\n";
+    cout << " i | Key | Home | Final | Probes\n";
+    int totalProbes = 0;
+    for (int i = 0; i < N; i++) {
+        int probes;
+        int slot = ht.insert(data[i], probes);
+        totalProbes += probes;
+        cout << setw(2) << i << " | " << setw(3) << data[i] << " | "
+             << setw(4) << ht.hash(data[i]) << " | ";
+        if (slot >= 0) cout << setw(5) << slot;
+        else           cout << " FULL";
+        cout << " | " << probes << "\n";
+    }
+    cout << "Total probes: " << totalProbes
+         << ", load factor: " << fixed << setprecision(2)
+         << (double)N / TABLE_SIZE << "\n";
     ht.display();
     return 0;
 }
