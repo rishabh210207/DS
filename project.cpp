@@ -13,7 +13,8 @@ using namespace std;
 const int N = 20;
 const int SEED = 148;
 const int TABLE_SIZE = 23;
-const int EMPTY = -1;   // NOT 0: key 0 is in the dataset
+const int EMPTY = -1;     // NOT 0: key 0 is in the dataset
+const int DELETED = -2;   // tombstone: keeps probe chains unbroken
 
 const int FULL = -1;
 const int DUPLICATE = -2;
@@ -31,22 +32,31 @@ public:
 
     int hash(int key) const { return key % m; }
 
-    // Returns final slot, FULL, or DUPLICATE.
+    // Returns final slot, FULL, or DUPLICATE. Reuses the first tombstone
+    // seen, but only after confirming the key isn't further along.
     int insert(int key, int &probes) {
         int home = hash(key);
+        int firstTomb = -1;
         probes = 0;
         for (int j = 0; j < m; j++) {
             int idx = (home + j) % m;
             probes++;
             if (table[idx] == key) return DUPLICATE;
+            if (table[idx] == DELETED) {
+                if (firstTomb == -1) firstTomb = idx;
+                continue;
+            }
             if (table[idx] == EMPTY) {
-                table[idx] = key;
-                return idx;
+                int target = (firstTomb != -1) ? firstTomb : idx;
+                table[target] = key;
+                return target;
             }
         }
+        if (firstTomb != -1) { table[firstTomb] = key; return firstTomb; }
         return FULL;
     }
 
+    // Skips over tombstones; stops only at a truly EMPTY slot.
     int search(int key, int &probes) const {
         int home = hash(key);
         probes = 0;
@@ -59,12 +69,21 @@ public:
         return -1;
     }
 
+    bool remove(int key) {
+        int probes;
+        int idx = search(key, probes);
+        if (idx < 0) return false;
+        table[idx] = DELETED;
+        return true;
+    }
+
     void display() const {
         cout << "\nSlot | Key\n-----+-----\n";
         for (int i = 0; i < m; i++) {
             cout << setw(4) << i << " | ";
-            if (table[i] == EMPTY) cout << "--";
-            else cout << table[i];
+            if (table[i] == EMPTY)        cout << "--";
+            else if (table[i] == DELETED) cout << "DEL";
+            else                          cout << table[i];
             cout << "\n";
         }
     }
@@ -121,13 +140,21 @@ int main() {
     searchTest(ht, 99);
 
     cout << "\n--- Duplicate key tests ---\n";
-    reportInsert(ht, data[0]);   // already present
-    reportInsert(ht, 0);         // already present (key 0)
+    reportInsert(ht, data[0]);
+    reportInsert(ht, 0);
 
     cout << "\n--- Full table test (separate table, m = 5) ---\n";
     HashTable small(5);
-    int extra[6] = {10, 15, 20, 25, 30, 35};  // all hash to slot 0
+    int extra[6] = {10, 15, 20, 25, 30, 35};
     for (int k : extra) reportInsert(small, k);
+    small.display();
+
+    cout << "\n--- Deletion test (tombstones) ---\n";
+    // In the small table, 10,15,20,25,30 form one probe chain from slot 0.
+    cout << "remove(15): " << (small.remove(15) ? "done" : "not found") << "\n";
+    searchTest(small, 25);     // must still be found past the tombstone
+    reportInsert(small, 25);   // must be rejected as duplicate, not reuse tombstone
+    reportInsert(small, 40);   // should reuse the tombstone
     small.display();
     return 0;
 }
