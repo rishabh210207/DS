@@ -7,30 +7,60 @@
 // =============================================================
 #include <iostream>
 #include <iomanip>
+#include <vector>
 using namespace std;
 
 const int N = 20;
 const int SEED = 148;
 const int TABLE_SIZE = 23;
+const int EMPTY = -1;   // NOT 0: key 0 is in the dataset
 
 void generateDataset(int v[]) {
     for (int i = 0; i < N; i++)
         v[i] = (SEED + 13 * i) % 100;
 }
 
-// Division method
-int hashDivision(int key, int m) {
-    return key % m;
-}
+class HashTable {
+    vector<int> table;
+    int m;
+public:
+    HashTable(int size) : table(size, EMPTY), m(size) {}
+
+    int hash(int key) const { return key % m; }
+
+    // No collision handling yet: report collision and skip the key
+    bool insert(int key) {
+        int idx = hash(key);
+        if (table[idx] != EMPTY) {
+            cout << "  COLLISION: key " << key << " -> slot " << idx
+                 << " already holds " << table[idx] << " (key skipped)\n";
+            return false;
+        }
+        table[idx] = key;
+        return true;
+    }
+
+    void display() const {
+        cout << "\nSlot | Key\n-----+-----\n";
+        for (int i = 0; i < m; i++) {
+            cout << setw(4) << i << " | ";
+            if (table[i] == EMPTY) cout << "--";
+            else cout << table[i];
+            cout << "\n";
+        }
+    }
+};
 
 int main() {
     int data[N];
     generateDataset(data);
+    HashTable ht(TABLE_SIZE);
 
-    cout << "Home slots with m = " << TABLE_SIZE << "\n";
-    cout << " i | Key | h(k)\n";
+    int stored = 0;
     for (int i = 0; i < N; i++)
-        cout << setw(2) << i << " | " << setw(3) << data[i]
-             << " | " << setw(4) << hashDivision(data[i], TABLE_SIZE) << "\n";
+        if (ht.insert(data[i])) stored++;
+
+    cout << "\nStored " << stored << " of " << N << " keys\n";
+    ht.display();
     return 0;
 }
